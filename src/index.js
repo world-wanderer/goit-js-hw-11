@@ -35,7 +35,7 @@ async function onSearchForm(evt) {
   }
 
   try {
-    const { data } = await fetchImg(searchQuery, refs.page);
+    const { data } = await fetchImg(searchQuery, page);
 
     if (data.totalHits === 0) {
       notifyNoFindImages();
