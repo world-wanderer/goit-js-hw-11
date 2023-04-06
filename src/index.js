@@ -8,8 +8,8 @@ import { galleryCardRender } from './js/galleryCardRender';
 
 const refs = {
   searchForm: document.querySelector('#search-form'),
+  gallery: document.querySelector('.gallery'),
   loadMoreButton: document.querySelector('.load-more'),
-  page: 1,
 };
 
 refs.searchForm.addEventListener('submit', onSearchForm);
@@ -17,54 +17,63 @@ refs.loadMoreButton.addEventListener('click', onLoadMore);
 
 let searchQuery = '';
 let simpleLightBox = null;
+const perPage = 40;
+let page = 1;
 
-function onSearchForm(evt) {
+async function onSearchForm(evt) {
   evt.preventDefault();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  refs.page = 1;
+  page = 1;
   searchQuery = evt.currentTarget.searchQuery.value.trim();
-  refs.loadMoreButton.style.display = 'block';
+  refs.gallery.innerHTML = '';
+  refs.loadMoreButton.classList.add('is-hidden');
 
   if (!searchQuery) {
+    refs.gallery.innerHTML = '';
     return;
   }
 
-  fetchImg(searchQuery, refs.page)
-    .then(({ data }) => {
-      if (data.totalHits === 0) {
-        notifyNoFindImages();
-      } else {
-        galleryCardRender(data.hits);
-        console.log(data.hits);
-        simpleLightBox = new SimpleLightbox('.gallery a').refresh();
-        notifyFoundImages(data);
+  try {
+    const { data } = await fetchImg(searchQuery, refs.page);
 
-        if (data.totalHits < data.hits) {
-          refs.loadMoreButton.style.display = 'none';
-        }
+    if (data.totalHits === 0) {
+      notifyNoFindImages();
+      refs.gallery.innerHTML = '';
+    } else {
+      galleryCardRender(data.hits);
+      console.log(data.hits);
+      simpleLightBox = new SimpleLightbox('.gallery a').refresh();
+      notifyFoundImages(data);
+
+      if (data.totalHits > perPage) {
+        refs.loadMoreButton.classList.remove('is-hidden');
       }
-    })
-    .catch(error => console.log(error));
+    }
+  } catch (error) {
+    console.log(error);
+  }
 }
 
-function onLoadMore() {
-  refs.page += 1;
+async function onLoadMore() {
+  page += 1;
   simpleLightBox.destroy();
 
-  fetchImg(searchQuery, refs.page)
-    .then(({ data }) => {
-      galleryCardRender(data.hits);
-      simpleLightBox = new SimpleLightbox('.gallery a').refresh();
+  try {
+    const { data } = await fetchImg(searchQuery, page);
 
-      const pagesQuantity = Math.ceil(data.totalHits / data.hits);
+    galleryCardRender(data.hits);
+    simpleLightBox = new SimpleLightbox('.gallery a').refresh();
 
-      if (refs.page >= pagesQuantity) {
-        refs.loadMoreButton.style.display = 'none';
-        notifyEndSearch();
-      }
-    })
-    .catch(error => console.log(error));
+    const pagesQuantity = Math.ceil(data.totalHits / perPage);
+
+    if (page >= pagesQuantity) {
+      refs.loadMoreButton.classList.add('is-hidden');
+      notifyEndSearch();
+    }
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 function notifyNoFindImages() {
